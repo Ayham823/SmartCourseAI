@@ -1,0 +1,17 @@
+# Reflection / רפלקציה
+
+## English
+
+SmartCourse AI connects a simple browser interface to a Flask server, PostgreSQL and an AI processing pipeline. An effective design choice was the explicit Agent Router: questions about course documents use RAG, structured tasks use approved tools, and general questions use a direct model response. Making the selected route visible helps users understand how a response was produced. Document names and page numbers make retrieved evidence inspectable, while the Python grade calculator produces a reproducible result independently of the language model.
+
+The main engineering challenge was connecting the existing components into one consistent conversation flow. Routing, retrieval, tool execution, response formatting and database persistence had to agree on the same API contract. Saving response metadata alongside messages made it possible to restore routes and sources after a page refresh. Versioned migrations and content-based PDF deduplication helped preserve existing data. Another lesson was the need to distinguish deterministic tests from external integration checks: mocks checked validation and failure handling, while separate local database and live Anthropic checks exercised the integrated system. These results demonstrate the tested scenarios, rather than guaranteeing every future model response.
+
+The project also highlighted the importance of data quality. Course Lookup can retrieve structured records, but official deadlines and weights have not been supplied, so it reports that verified information is unavailable. Further improvements include adding official course records and more course documents, evaluating routing and retrieval against representative questions, and testing multilingual embeddings for Hebrew. Authentication and conversation access control would be necessary for a service with multiple users. OCR support would extend ingestion to scanned PDFs. These steps build on the current local prototype and address its documented limitations.
+
+## עברית
+
+SmartCourse AI מחבר ממשק דפדפן פשוט לשרת Flask, למסד PostgreSQL ולתהליך עיבוד מבוסס AI. בחירת תכנון יעילה הייתה נתב מפורש: שאלות על מסמכי הקורס משתמשות ב־RAG, משימות מובנות משתמשות בכלים מאושרים ושאלות כלליות מקבלות תשובה ישירה מהמודל. הצגת המסלול שנבחר עוזרת להבין כיצד הופקה התשובה. שמות מסמכים ומספרי עמודים מאפשרים לבדוק את הראיות שנשלפו, וכלי חישוב הציון ב־Python מפיק תוצאה שניתן לשחזר באופן בלתי תלוי במודל השפה.
+
+האתגר ההנדסי המרכזי היה חיבור הרכיבים הקיימים לזרימת שיחה עקבית. הניתוב, השליפה, הפעלת הכלים, עיצוב התשובה ושמירת הנתונים היו צריכים להשתמש בחוזה API משותף. שמירת מטא־נתוני התשובה לצד ההודעות אפשרה לשחזר מסלולים ומקורות לאחר רענון הדף. עדכוני סכימה ממוספרים ומניעת קליטת PDF כפול לפי תוכנו סייעו לשמור על הנתונים הקיימים. לקח נוסף היה הצורך להבחין בין בדיקות דטרמיניסטיות לבדיקות אינטגרציה חיצוניות: mocks בדקו אימות קלט וטיפול בכשלים, ובדיקות נפרדות מול המסד המקומי ו־Anthropic בדקו את שילוב הרכיבים. התוצאות מוכיחות את התרחישים שנבדקו, ואינן מבטיחות את נכונותה של כל תשובת מודל עתידית.
+
+הפרויקט הדגיש גם את חשיבות איכות הנתונים. כלי המידע על הקורס יכול לשלוף רשומות מובנות, אך מועדים ומשקלים רשמיים לא סופקו, ולכן הוא מדווח שמידע מאומת אינו זמין. שיפורים אפשריים כוללים הוספת מידע רשמי ומסמכי קורס נוספים, הערכת הניתוב והשליפה מול שאלות מייצגות ובדיקת מודל הטמעה רב־לשוני עבור עברית. שירות עם משתמשים רבים ידרוש אימות והרשאות גישה לשיחות. תמיכה ב־OCR תאפשר לקלוט גם מסמכים סרוקים. צעדים אלו ממשיכים את האבטיפוס המקומי ומתמודדים עם המגבלות המתועדות שלו.

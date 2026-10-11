@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SmartCourse AI</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <header class="header">
+        <div>
+            <h1>SmartCourse AI</h1>
+            <p>Agentic Study Assistant</p>
+        </div>
+
+        <button id="newChatButton" type="button">
+            New Chat
+        </button>
+    </header>
+
+    <main id="chatMessages" class="chat-messages" aria-label="Conversation" aria-live="polite" aria-relevant="additions">
+
+        <div class="welcome">
+            <h2>Welcome to SmartCourse AI</h2>
+
+            <p>
+                Ask questions about your course materials,
+                calculate grades, or ask general questions.
+            </p>
+        </div>
+
+    </main>
+
+    <div class="status-row">
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <button id="retryHistoryButton" type="button" hidden>Retry history</button>
+    </div>
+
+    <form id="chatForm" class="chat-form">
+
+        <label class="visually-hidden" for="messageInput">Your question</label>
+        <textarea
+            id="messageInput"
+            placeholder="Ask something about your course..."
+            rows="2"
+            maxlength="4000"
+            aria-describedby="keyboardHint"
+            dir="auto"
+        ></textarea>
+
+        <button id="sendButton" type="submit">
+            Send
+        </button>
+
+    </form>
+
+    <p id="keyboardHint" class="keyboard-hint">Enter to send · Shift+Enter for a new line. Local study prototype; anyone with a session ID can access that chat.</p>
+
+</div>
+
+<script src="/static/app.js"></script>
+
+</body>
+</html>
