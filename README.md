@@ -39,6 +39,13 @@ flowchart TD
 
 More detail: [architecture documentation](docs/architecture.md).
 
+## Five-minute project review
+
+- [Development UI screenshot](docs/demo-ui.png)
+- [Architecture and data flow](docs/architecture.md)
+- [Reproducible local demo walkthrough](docs/DEMO_SHOTLIST.md) — **not a hosted demo or prerecorded video**
+- [Test verification and limitations](docs/verification.md)
+
 ## Getting started (local development)
 
 Requirements: Python 3.12, Docker + Docker Compose, an [Anthropic API key](https://console.anthropic.com/), and internet access for the initial embedding model download. Works on Linux / WSL2. No hosted demo is provided.
