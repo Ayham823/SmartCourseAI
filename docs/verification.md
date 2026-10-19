@@ -1,10 +1,8 @@
 > **Historical academic submission verification (2026-10-09).** This record documents the original course-document environment. The public portfolio edition uses a newly authored sample PDF and must be tested separately before claiming that all integration/live results reproduce on the sample.
 
-# Verification record / תיעוד אימות
+# Verification record
 
 Executed on **2026-10-09**, in WSL2 Ubuntu with the existing Python 3.12 virtual environment and Docker PostgreSQL. Results below are observed checks, not historical assumptions. No existing tables, documents, conversations or Docker volumes were deleted.
-
-הבדיקות בוצעו ב-**09.10.2026** ב-WSL2 Ubuntu, בסביבת Python 3.12 הקיימת ובמסד PostgreSQL בתוך Docker. אלו תוצאות שנצפו בפועל. לא נמחקו טבלאות, מסמכים, שיחות או נפחי Docker קיימים.
 
 | Check | Observed result |
 | --- | --- |
@@ -24,9 +22,9 @@ Executed on **2026-10-09**, in WSL2 Ubuntu with the existing Python 3.12 virtual
 | Client syntax/safe rendering | `node --check client/app.js` passed; content and source metadata rendered as text; simulated DOM checks passed |
 | Active key scan | No active Anthropic key found in project files outside `.env`; excluded venv, caches and backups |
 | Git history | Original project has no `.git`; historical commit audit unavailable |
-| Bilingual deliverables | English/Hebrew README, Mermaid architecture, reflection, demo and implementation checklist prepared |
+| Documentation deliverables | README, Mermaid architecture, reflection, demo and implementation checklist prepared |
 
-## Reproduce the checks / שחזור הבדיקות
+## Reproduce the checks
 
 ```bash
 cd ~/SmartCourseAI
@@ -40,9 +38,7 @@ env SMARTCOURSE_INTEGRATION_TESTS=1 SMARTCOURSE_LIVE_TESTS=1 pytest -q -m live
 
 Normal pytest runs mock external services. Database integration checks intentionally retain their newly created demonstration sessions and logs; they do not erase earlier records. Live tests use the configured model/key and are never enabled automatically.
 
-בדיקות רגילות מדמות שירותים חיצוניים. בדיקות המסד שומרות שיחות ויומנים חדשים של ההדגמה ואינן מוחקות מידע קודם. בדיקות ספק חיות משתמשות בהגדרות הקיימות ומופעלות רק במפורש.
-
-## Grading rubric / מחוון
+## Grading rubric
 
 | Component | Weight | Evidence |
 | --- | --- | --- |
@@ -52,15 +48,12 @@ Normal pytest runs mock external services. Database integration checks intention
 | RAG pipeline |20%| Idempotent PDF ingestion,384-dimensional vectors, cosine retrieval, live answer and sources |
 | Tools implementation |15%| Anthropic schemas, Python arithmetic, verified-data lookup, successful/failed persisted calls |
 | LCEL, memory, error handling |10%| Prompt/model/parser chains, live follow-up, bounded history and sanitized error tests |
-| Documentation/diagram |10%| English/Hebrew README and reproducible Mermaid diagram; reflection and demo |
+| Documentation/diagram |10%| README and reproducible Mermaid diagram; reflection and demo |
 
-## Limits and user review / מגבלות ובדיקת המשתמש
+## Limits and user review
 
 - No verified course deadlines/weights were supplied. The lookup correctly returns unavailable information rather than invented records. Add official records marked`verified:true` only when known.
-- This local academic prototype has no user authentication; possession of a UUID grants access to its conversation. Hebrew MiniLM retrieval quality is limited, and scanned PDFs need external OCR.
+- This local academic prototype has no user authentication; possession of a UUID grants access to its conversation. MiniLM retrieval quality outside the supplied English demonstration material remains limited, and scanned PDFs need external OCR.
 - Review the reflection in your own words and perform the demonstration using`demo.md` for submission.
 - Revocation of the older exposed API key cannot be verified from the available local environment. The current key works and was kept private; confirm old-key revocation in the provider console.
 - Final session preflight (/sessions), plain-text model output and DIRECT_LLM history refresh were also checked in the browser. All 156 test cases passed across the three explicit test runs; routine pytest intentionally skips the 7 opt-in cases.
-
-מידע רשמי על מועדים ומשקלים לא סופק; הכלי מחזיר מידע לא זמין. האבטיפוס מקומי וללא אימות משתמשים. יש לעבור על הרפלקציה ולבצע את ההדגמה להגשה. ביטול המפתח הישן שנחשף לא ניתן לאימות מהסביבה המקומית; המפתח הפעיל פועל ונשמר פרטי.
-

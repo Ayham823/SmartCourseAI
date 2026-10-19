@@ -1,8 +1,6 @@
-# Architecture / ארכיטקטורה
+# Architecture
 
 The source below is reproducible Mermaid. It describes the implemented modules and their intended runtime flow; live execution evidence belongs in `verification.md`.
-
-התרשים הבא כתוב ב-Mermaid וניתן לשחזור. הוא מתאר את המודולים ואת זרימת ההרצה; תוצאות בדיקות חיות מתועדות בנפרד.
 
 ```mermaid
 flowchart TD
@@ -37,5 +35,3 @@ flowchart TD
 ```
 
 `server/agent/` owns routing, `server/rag/` owns ingestion/retrieval, `server/tools/` owns the tool schemas and execution, `server/llm/` owns orchestration, and `server/database/` owns persistence. The client has no direct connection to Anthropic or PostgreSQL.
-
-הניתוב נמצא ב-`server/agent/`, עיבוד ושליפת מסמכים ב-`server/rag/`, הגדרת כלים והרצתם ב-`server/tools/`, תזמור המודל ב-`server/llm/` ואחסון ב-`server/database/`. ללקוח אין חיבור ישיר לספק או למסד.

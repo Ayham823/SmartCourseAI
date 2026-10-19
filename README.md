@@ -126,9 +126,9 @@ docs/                   Architecture, walkthrough and development screenshot
 - **Explicit routing** makes behavior observable and easier to test than hidden heuristics, but an ambiguous query can still be misclassified.
 - **Local pgvector** lets relational messages and vector embeddings share one managed container; a scalable multi-user deployment would require additional safeguards.
 - **No user login:** A session UUID is a bearer reference. This is an academic local prototype and **must not be exposed publicly as a shared service** without authentication, authorization, and TLS.
-- **RAG scope:** Retrieval quality and multilingual coverage depend on the supplied documents. The public demo ships one small original PDF and no real student data.
+- **RAG scope:** Retrieval quality and coverage depend on the supplied documents. The public demo ships one small original PDF and no real student data.
 
-See [the walkthrough](docs/demo.md) and [full academic implementation documentation (English + Hebrew)](docs/ACADEMIC_DOCUMENTATION.md).
+See [the walkthrough](docs/demo.md) and [full academic implementation documentation](docs/ACADEMIC_DOCUMENTATION.md).
 
 ---
 
