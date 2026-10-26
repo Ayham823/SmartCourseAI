@@ -47,3 +47,5 @@ The evaluator rejects non-loopback/unapproved database names and non-empty datab
 - Evaluate a reranker or evidence-sufficiency stage with both recall and unanswerable false-accept metrics, rather than treating cosine similarity as truth.
 - Once fresh provider credentials are available, separately evaluate factual support, citation precision, appropriate abstention and prompt-injection behavior of actual generated answers. This run makes no claim about those measures.
 - The application remains a local academic prototype without multi-user authentication; do not expose conversation endpoints publicly as a hosted demo without access controls.
+
+CI writes metrics into the job summary and logs. Raw artifact archival is best-effort: a full account artifact quota must not change the outcome of mandatory tests or evaluation. No existing artifacts are deleted automatically.
