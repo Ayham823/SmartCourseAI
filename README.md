@@ -133,3 +133,7 @@ See [the walkthrough](docs/demo.md) and [full academic implementation documentat
 ---
 
 Built as a university final project and extended as a portfolio demonstration of **AI engineering, backend APIs, database design, and testing**.
+
+## Reproducible retrieval evaluation
+
+The current public sample has a [24-question offline retrieval benchmark](docs/RETRIEVAL_EVALUATION.md) using real MiniLM embeddings and PostgreSQL/pgvector. In the observed run, relevant evidence survived the default similarity gate for 14/16 answerable questions; 6/8 unanswerable questions were rejected. The four-chunk fixture is small and two false accepts remain. These are retrieval metrics, not generated-answer accuracy. Raw ranked results and reproduction steps are linked in the report; no Anthropic call or key was used.
