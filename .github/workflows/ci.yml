@@ -53,8 +53,22 @@ jobs:
           DATABASE_URL: postgresql://postgres@127.0.0.1:5432/smartcourse_eval_ci
           SMARTCOURSE_EVAL_DISPOSABLE_DB: '1'
         run: python -m evaluation.retrieval --output .artifacts/retrieval.json
+      - name: Write verification summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(".artifacts/retrieval.json")
+          if path.exists():
+              data = json.loads(path.read_text())
+              summary = data.get("metrics", data)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
+                  stream.write("### Retrieval evaluation\n\n```json\n" + json.dumps(summary, indent=2) + "\n```\n")
+          PY
       - name: Retain retrieval evidence
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: retrieval-evaluation
