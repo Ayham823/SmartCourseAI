@@ -1,3 +1,13 @@
+# Latest public-sample verification — October 26, 2026
+
+- Deterministic suite: **155 passed, 7 opt-in integration/live cases skipped**. The separate retrieval benchmark below does not turn skipped cases into passes.
+- New public-sample evaluation: actual PDF ingestion, cached MiniLM embeddings and fresh PostgreSQL/pgvector retrieval on 24 labeled cases, with no generative API. See [results, failures and reproduction](RETRIEVAL_EVALUATION.md).
+- Default-gate accepted evidence: 14/16 answerable cases; correct abstention: 6/8 unanswerable cases. Two false accepts and two false rejects remain.
+
+The older academic-environment record below is historical and includes prior live-provider checks. Those live checks were **not repeated** for this update.
+
+---
+
 > **Historical academic submission verification (2026-10-09).** This record documents the original course-document environment. The public portfolio edition uses a newly authored sample PDF and must be tested separately before claiming that all integration/live results reproduce on the sample.
 
 # Verification record
