@@ -1,7 +1,7 @@
 import json
 from unittest.mock import Mock
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from server.errors import AppError
 from server.llm import chain
@@ -120,8 +120,8 @@ def test_tool_roundtrip_uses_selected_schema_python_result_and_tool_message(monk
     assert result['route'] == 'TOOL' and result['tool'] == 'grade_calculator' and '85.9' in result['answer']
     assert [schema['name'] for schema in provider.schemas] == ['grade_calculator']
     assert logs[0][3]['result']['final_grade'] == 85.9
-    results = [message for message in provider.prompts[-1] if isinstance(message, ToolMessage)]
-    assert json.loads(results[0].content)['result']['final_grade'] == 85.9
+    assert result['tool_execution']['calls'][0]['result']['final_grade'] == 85.9
+    assert len(provider.prompts) == 1
 
 
 def test_unknown_provider_tool_is_never_executed_and_logs_errors(monkeypatch, logs):
@@ -141,7 +141,7 @@ def test_tool_round_limit_and_validation_failure_are_finite(monkeypatch, logs):
     provider = FakeProvider([request, request], answer='Grade must be between 0 and 100.')
     monkeypatch.setattr(chain, 'get_llm', lambda: provider)
     result = service.process_message('Calculate final grade: Exam grade120, weight100%.', 'session', [])
-    assert len(provider.prompts) == 3 and len(logs) == 2
+    assert len(provider.prompts) == 2 and len(logs) == 2
     assert all(log[3]['status'] == 'error' for log in logs)
     assert '85.9' not in result['answer']
 
@@ -181,7 +181,8 @@ def test_incomplete_tool_request_can_ask_for_clarification_without_fake_calculat
     provider = FakeProvider([AIMessage(content='What are the grades and percentage weights?')])
     monkeypatch.setattr(chain, 'get_llm', lambda: provider)
     result = service.process_message('Calculate my final grade.', 'session', [])
-    assert 'percentage weights' in result['answer'] and not logs
+    assert 'grade' in result['answer'] and 'weight' in result['answer'] and not logs
+    assert result['tool_execution']['status'] == 'not_executed'
 
 
 def test_unlogged_tool_result_cannot_return_success(monkeypatch):
@@ -210,3 +211,64 @@ def test_embedding_model_failure_has_safe503(monkeypatch):
     with pytest.raises(AppError) as error:
         embeddings.embed_text('Course question')
     assert error.value.status == 503 and 'secret' not in error.value.message
+
+
+def test_complete_grade_request_rejects_a_model_answer_without_execution(monkeypatch, logs):
+    provider = FakeProvider([AIMessage(content='Your final grade is 85.9.')])
+    monkeypatch.setattr(chain, 'get_llm', lambda: provider)
+    result = service.process_message(GRADE_QUESTION, 'session', [])
+    assert '85.9' not in result['answer']
+    assert result['tool_execution'] == {'status': 'not_executed', 'calls': []}
+    assert not logs
+
+
+def test_python_result_is_authoritative_even_if_final_model_would_lie(monkeypatch, logs):
+    provider = FakeProvider([tool_request(GRADE_INPUT)], answer='Your final grade is 999.')
+    monkeypatch.setattr(chain, 'get_llm', lambda: provider)
+    result = service.process_message(GRADE_QUESTION, 'session', [])
+    assert '999' not in result['answer'] and '85.9' in result['answer']
+    assert result['tool_execution']['status'] == 'executed'
+    assert result['tool_execution']['calls'][0]['result']['final_grade'] == 85.9
+    assert len(provider.prompts) == 1  # No second model call to rewrite numeric facts.
+
+
+def test_failed_validation_cannot_be_replaced_with_a_fabricated_answer(monkeypatch, logs):
+    invalid = {'components': [{'name': 'Exam', 'grade': 120, 'weight': 100}]}
+    provider = FakeProvider([tool_request(invalid), AIMessage(content='Your final grade is 85.9.')])
+    monkeypatch.setattr(chain, 'get_llm', lambda: provider)
+    result = service.process_message('Calculate final grade: exam grade 120, weight 100%.', 'session', [])
+    assert result['tool_execution']['status'] == 'failed'
+    assert '85.9' not in result['answer']
+    assert len(logs) == 1 and logs[0][3]['status'] == 'error'
+
+
+def test_lookup_without_execution_cannot_invent_a_deadline(monkeypatch, logs):
+    provider = FakeProvider([AIMessage(content='The deadline is 2027-12-31.')])
+    monkeypatch.setattr(chain, 'get_llm', lambda: provider)
+    result = service.process_message('When is the Final Project deadline?', 'session', [])
+    assert '2027-12-31' not in result['answer'] and not logs
+    assert result['tool_execution']['status'] == 'not_executed'
+
+
+def test_corrected_tool_call_preserves_failed_attempt_and_success(monkeypatch, logs):
+    invalid = {'components': [{'name': 'Exam', 'grade': 82, 'weight': 70}]}
+    provider = FakeProvider([tool_request(invalid), tool_request(GRADE_INPUT)])
+    monkeypatch.setattr(chain, 'get_llm', lambda: provider)
+    result = service.process_message(GRADE_QUESTION, 'session', [])
+    execution = result['tool_execution']
+    assert execution['status'] == 'executed'
+    assert [call['status'] for call in execution['calls']] == ['error', 'success']
+    assert '85.9' in result['answer']
+
+
+@pytest.mark.parametrize('question,fragment', [
+    ('احسب المعدل النهائي', 'لم تُنفّذ'),
+    ('חשב את הציון הסופי', 'לא הופעל'),
+])
+def test_no_execution_uses_fixed_localized_clarification(monkeypatch, logs, question, fragment):
+    monkeypatch.setattr(service.AgentRouter, 'route', lambda *args: {
+        'route': 'TOOL', 'tool': 'grade_calculator', 'routing_reason': 'test',
+    })
+    monkeypatch.setattr(chain, 'get_llm', lambda: FakeProvider([AIMessage(content='Grade: 99')]))
+    result = service.process_message(question, 'session', [])
+    assert fragment in result['answer'] and '99' not in result['answer'] and not logs

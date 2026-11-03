@@ -7,6 +7,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(os.getenv("SMARTCOURSE_ENV_FILE", str(ROOT_DIR / ".env")), override=False)
 
 
+def is_placeholder(value):
+    """Recognize shipped example values without imposing a provider key format."""
+    text = value.strip().casefold()
+    return "replace_with_" in text or text in {"changeme", "your_api_key", "your_model_id"} or (text.startswith("<") and text.endswith(">"))
+
+
 def env_int(name, default, minimum=1, maximum=100000):
     value = int(os.getenv(name, str(default)))
     if not minimum <= value <= maximum:

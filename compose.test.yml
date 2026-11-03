@@ -1,0 +1,18 @@
+# Disposable test database only. It has no persistent volume and never uses .env.
+name: smartcourse-portfolio-test
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: smartcourse_portfolio_test
+      POSTGRES_USER: portfolio_test
+      POSTGRES_PASSWORD: local-test-only
+    ports:
+      - "127.0.0.1:${SMARTCOURSE_TEST_DB_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio_test -d smartcourse_portfolio_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

@@ -90,6 +90,11 @@ function addMessage(role, content, metadata = {}) {
             badge.className = "route";
             const tool = TOOL_LABELS[metadata.tool] || metadata.tool;
             badge.textContent = `Route: ${route === "TOOL" && tool ? `TOOL: ${tool}` : route}`;
+            if (route === "TOOL") {
+                const execution = metadata.tool_execution || {};
+                const labels = { executed: "executed", not_executed: "not executed", failed: "failed" };
+                badge.textContent += ` · Execution: ${labels[execution.status] || "not recorded"}`;
+            }
             bubble.append(badge);
         }
         if (metadata.routing_reason) {

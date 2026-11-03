@@ -1,4 +1,44 @@
-# Latest public-sample verification — October 26, 2026
+# Reliability iteration verification — November 4, 2026
+
+Observed in a separate clone based on upstream `c2b8183`, using Python 3.12.3
+from the existing WSL virtual environment without changing its dependencies.
+No credentials or submission records were copied. Database tests used the
+ephemeral `compose.test.yml` container on loopback port 55432, separate from the
+academic database. The dependency environment was reused for verification; a
+fresh dependency installation was not performed in this iteration.
+
+| Check | Observed result |
+| --- | --- |
+| Unmodified upstream unit baseline | 155 passed, 7 opt-in checks skipped |
+| New regression scenarios before fixes | 14 failed, 4 passed in the targeted run |
+| Final ordinary pytest suite | **194 passed, 8 opt-in checks skipped** |
+| Separate real PostgreSQL / RAG integration | **7 passed**, generative provider mocked |
+| Real offline retrieval evaluation | 24 cases; metrics unchanged from October 26 |
+| JavaScript syntax and Git whitespace check | Passed |
+| Offline preflight with no local secrets | Exit 1; safely names three missing required settings |
+| Live Anthropic generation | Not run; no paid provider calls in this iteration |
+| New visual browser verification | Not run; only execution-status text was changed in the client |
+
+The eight ordinary skipped cases are the seven database integration cases run
+separately above and one live-provider case not run. Unit and integration XML
+results and the working-tree retrieval report are under ignored `.artifacts/`.
+See [decisions, commands and learning walkthrough](reliability.md).
+
+Retrieval remains a small synthetic English benchmark: 16 answerable and 8
+unanswerable cases; hit@5, page recall@5 and MRR@5 are 1.0. The default similarity
+gate accepts evidence for 14/16 answerable questions and abstains for 6/8
+unanswerable questions. Two false accepts and two false rejects remain. These
+numbers do not measure generated-answer correctness or multilingual quality.
+
+The new clone intentionally has no `.env`. A valid key and chosen accessible
+model must be configured locally before live chat can be verified. Preflight
+passing is never evidence of successful provider authentication or generation.
+GitHub workflow status for this branch must be checked separately from the local
+results above; changing its YAML does not itself prove a successful remote run.
+
+---
+
+# Public-sample verification — October 26, 2026
 
 - Deterministic suite: **155 passed, 7 opt-in integration/live cases skipped**. The separate retrieval benchmark below does not turn skipped cases into passes.
 - New public-sample evaluation: actual PDF ingestion, cached MiniLM embeddings and fresh PostgreSQL/pgvector retrieval on 24 labeled cases, with no generative API. See [results, failures and reproduction](RETRIEVAL_EVALUATION.md).
