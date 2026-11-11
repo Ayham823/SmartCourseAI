@@ -4,20 +4,40 @@ import os
 import re
 
 from server.errors import AppError
+from server.agent.router import AgentRouter
 from server.llm.chain import generate_rag_answer
 from server.rag.retriever import retrieve_chunks
 
 
 def _retrieval_query(question, history):
-    pronouns = re.search(r"\b(?:it|its|they|them|their|that|those|this|these|ذلك|هذا|هذه|هو|هي)\b", question, flags=re.IGNORECASE)
-    short_followup = len(question.split()) <= 8 and re.match(
-        r"^(?:why\b|how\b|and\b|also\b|tell me more|explain (?:more|further)|continue\b|ماذا عن|وماذا|ولماذا|وكيف|كيف|لماذا|أكمل|اشرح أكثر|اشرح المزيد)",
+    pronouns = re.search(
+        r"\b(?:it|its|they|them|their|that|those|this|these|ذلك|هذا|هذه|هو|هي|זה|זאת|אלה|שלו|שלה)\b",
+        question, flags=re.IGNORECASE,
+    )
+    # A generic How/Why question may introduce a completely new subject.
+    # Only explicit references or a topic-free continuation inherit history.
+    continuation = re.fullmatch(
+        r"(?:why|how so|tell me more|explain more|explain further|continue|"
+        r"لماذا|أكمل|اشرح أكثر|اشرح المزيد|למה|המשך|הסבר עוד)[\s?.!؟]*",
         question.strip(), flags=re.IGNORECASE,
     )
-    if pronouns or short_followup:
-        for item in reversed(history or []):
-            if isinstance(item, dict) and item.get("role") == "user" and isinstance(item.get("content"), str):
-                return f"{item['content'][:600]}\nFollow-up: {question[:600]}"
+    if not (pronouns or continuation):
+        return question
+    for item in reversed(list(history or [])[-12:]):
+        if not isinstance(item, dict):
+            continue
+        if item.get("role") == "assistant":
+            metadata = item.get("metadata")
+            metadata = metadata if isinstance(metadata, dict) else {}
+            route = metadata.get("route", item.get("route"))
+            if route in {"TOOL", "DIRECT_LLM"}:
+                return question
+        if item.get("role") == "user" and isinstance(item.get("content"), str) and item["content"].strip():
+            # Legacy history has no route metadata; never append calculator or
+            # course-lookup input to a retrieval query.
+            if AgentRouter().route(item["content"])["route"] == "TOOL":
+                return question
+            return f"{item['content'][:600]}\nFollow-up: {question[:600]}"
     return question
 
 

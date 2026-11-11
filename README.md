@@ -14,10 +14,10 @@
 
 - **Explainable agent routing:** Deterministic, testable decisions across `RAG`, `TOOL`, and `DIRECT_LLM`, with routing metadata visible in the chat UI.
 - **End-to-end RAG:** PDF parsing → overlapping chunks → 384-dimensional MiniLM embeddings → cosine search in PostgreSQL/pgvector → source-grounded Claude response with document/page citations.
-- **Real tool execution:** Anthropic tool schemas, argument validation, allowlisted Python handlers, weighted-grade calculations, and structured course lookups; calls and failures are logged to PostgreSQL.
+- **Auditable tool execution:** Anthropic selects arguments for allowlisted Python handlers; Python renders calculator and lookup facts directly. Responses distinguish `executed`, `not_executed`, and `failed`, including attempts and results preserved in PostgreSQL history.
 - **Persistent conversations:** UUID sessions, bounded multi-turn context, transactional message persistence, and refresh-safe browser history.
 - **Reliability:** Structured API errors, secret-safe configuration, retries for transient provider errors, additive schema migrations, and content-hash PDF deduplication.
-- **Tests:** 149 deterministic tests reported passing locally; 7 optional integration/live checks (run separately and may use paid API credits).
+- **Tests:** Deterministic unit and regression tests, isolated PostgreSQL/RAG integration checks, and separate opt-in paid live checks. Dated results and scope are recorded in [verification.md](docs/verification.md).
 
 ## Architecture
 
@@ -62,6 +62,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Edit .env: set matching PostgreSQL settings, your ANTHROPIC_API_KEY and available ANTHROPIC_MODEL
+python -m server.preflight
 
 docker compose up -d
 python -m server.database.migrate
@@ -70,6 +71,41 @@ python -m server.app
 ```
 
 Visit **http://localhost:5000**. Verify server/database readiness at `GET /health`.
+
+`python -m server.preflight --json` checks configuration locally without printing
+secrets or contacting a database/provider. It exits with 1 for missing, placeholder,
+or invalid settings. A passing preflight does **not** verify API credentials, model
+availability, credit balance, database connectivity, or live generation.
+
+### Reliability development baseline
+
+The portfolio reliability iteration retains the existing Flask/LCEL architecture.
+The selected `tool` is routing intent; `tool_execution.status` records actual execution:
+`executed` means every call in the final batch succeeded, `failed` means a final
+batch contained errors, and `not_executed` means no call was made. Earlier failed
+attempts remain in `tool_execution.calls` after a successful correction.
+Course lookup can execute successfully while returning `unavailable` data.
+The browser displays execution status separately, including after history reload.
+See [the reliability decisions and walkthrough](docs/reliability.md).
+
+Use a disposable test database rather than the academic submission database:
+
+```bash
+docker compose -f compose.test.yml up -d --wait
+SMARTCOURSE_ENV_FILE=/dev/null \
+DATABASE_URL=postgresql://portfolio_test:local-test-only@127.0.0.1:55432/smartcourse_portfolio_test \
+SMARTCOURSE_INTEGRATION_TESTS=1 SMARTCOURSE_TEST_DISPOSABLE_DB=1 \
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+python -m pytest -q -m 'integration and not live'
+docker compose -f compose.test.yml down
+```
+
+This test-only database uses a throwaway password, loopback port 55432, a separate
+Compose project and memory-backed storage; stopping the container discards it.
+It has no mount of `.env` or the original database volume. The embedding model
+must already be cached for the offline integration command. Ordinary unit tests
+need neither Docker nor provider credentials. See `docs/reliability.md` for a
+fresh-environment setup and optional cache download.
 
 > Never commit `.env` or share live keys. Running the Anthropic LLM requires a valid account and may incur API charges. The Docker database is configured for local access.
 

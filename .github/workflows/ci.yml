@@ -38,6 +38,8 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q server tests
       - name: Run deterministic test suite
+        env:
+          SMARTCOURSE_ENV_FILE: /dev/null
         run: python -m pytest -q
       - name: Check browser JavaScript syntax
         run: node --check client/app.js
@@ -53,6 +55,15 @@ jobs:
           DATABASE_URL: postgresql://postgres@127.0.0.1:5432/smartcourse_eval_ci
           SMARTCOURSE_EVAL_DISPOSABLE_DB: '1'
         run: python -m evaluation.retrieval --output .artifacts/retrieval.json
+      - name: Run isolated database integration (no generative API)
+        env:
+          SMARTCOURSE_ENV_FILE: /dev/null
+          DATABASE_URL: postgresql://postgres@127.0.0.1:5432/smartcourse_eval_ci
+          SMARTCOURSE_INTEGRATION_TESTS: '1'
+          SMARTCOURSE_TEST_DISPOSABLE_DB: '1'
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python -m pytest -q -m 'integration and not live' --junitxml=.artifacts/integration.xml
       - name: Write verification summary
         if: always()
         run: |

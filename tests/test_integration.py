@@ -9,6 +9,7 @@ from importlib import import_module
 from pathlib import Path
 from uuid import uuid4
 import pytest
+from psycopg.conninfo import conninfo_to_dict
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 from server.config import ROOT_DIR
@@ -25,8 +26,13 @@ pytestmark = pytest.mark.integration
 def enabled():
     if os.getenv('SMARTCOURSE_INTEGRATION_TESTS') != '1':
         pytest.skip('Set SMARTCOURSE_INTEGRATION_TESTS=1 for local database checks.')
-    assert db.check_database_connection()
+    config = conninfo_to_dict(os.getenv('DATABASE_URL', ''))
+    if (os.getenv('SMARTCOURSE_TEST_DISPOSABLE_DB') != '1'
+            or config.get('host') not in {'127.0.0.1', 'localhost', '::1'}
+            or not config.get('dbname', '').startswith(('smartcourse_test_', 'smartcourse_eval_', 'smartcourse_portfolio_test'))):
+        pytest.fail('Integration checks require explicit opt-in and a disposable loopback test database; the submission database must not be used.')
     migrate()
+    assert db.check_database_connection()
 
 
 class DeterministicProvider(RunnableLambda):
@@ -95,12 +101,16 @@ def test_chat_persists_real_tool_calls_and_metadata(client):
     assert grade.status_code == 200, grade.json
     assert grade.json['route'] == 'TOOL' and grade.json['tool'] == 'grade_calculator'
     assert '85.9' in grade.json['answer']
+    assert grade.json['tool_execution']['status'] == 'executed'
+    assert grade.json['tool_execution']['calls'][0]['result']['final_grade'] == 85.9
     session_id = grade.json['session_id']
     lookup = client.post('/chat', json={'session_id': session_id, 'message': 'When is the Final Project deadline?'})
     assert lookup.status_code == 200 and lookup.json['tool'] == 'course_information_lookup'
     history = client.get('/history', query_string={'session_id': session_id}).json['messages']
     assert [message['role'] for message in history] == ['user', 'assistant', 'user', 'assistant']
     assert history[1]['tool'] == 'grade_calculator'
+    assert history[1]['metadata']['tool_execution'] == grade.json['tool_execution']
+    assert history[-1]['metadata']['tool_execution']['status'] == 'executed'
     with db.get_connection() as connection, connection.cursor() as cursor:
         cursor.execute('SELECT tool_name, input_data, output_data FROM tool_calls WHERE session_id=%s ORDER BY id', (session_id,))
         logs = cursor.fetchall()
@@ -114,6 +124,29 @@ def test_rag_chat_sources_survive_history_refresh(client):
     assert response.status_code == 200 and response.json['route'] == 'RAG'
     messages = client.get('/history', query_string={'session_id': response.json['session_id']}).json['messages']
     assert messages[-1]['sources'] == response.json['sources'] and messages[-1]['route'] == 'RAG'
+
+
+def test_unexecuted_tool_status_survives_history_without_a_fake_tool_log(monkeypatch):
+    from server.llm import chain
+
+    class TextOnlyProvider(DeterministicProvider):
+        def bind_tools(self, schemas):
+            return RunnableLambda(lambda prompt: AIMessage(content='Your final grade is 85.9.'))
+
+    monkeypatch.setattr(chain, 'get_llm', lambda: TextOnlyProvider())
+    module = import_module('server.app')
+    client = module.create_app({'TESTING': True}).test_client()
+    response = client.post('/chat', json={'message': 'Calculate my final grade.'})
+    assert response.status_code == 200
+    assert '85.9' not in response.json['answer']
+    execution = response.json['tool_execution']
+    assert execution == {'status': 'not_executed', 'calls': []}
+    session_id = response.json['session_id']
+    messages = client.get('/history', query_string={'session_id': session_id}).json['messages']
+    assert messages[-1]['metadata']['tool_execution'] == execution
+    with db.get_connection() as connection, connection.cursor() as cursor:
+        cursor.execute('SELECT count(*) FROM tool_calls WHERE session_id=%s', (session_id,))
+        assert cursor.fetchone()[0] == 0
 
 
 def test_failed_tool_calls_are_persisted(monkeypatch):
@@ -130,6 +163,7 @@ def test_failed_tool_calls_are_persisted(monkeypatch):
     client = module.create_app({'TESTING': True}).test_client()
     response = client.post('/chat', json={'message': 'Calculate my final grade: exam grade 120 with weight 100%.'})
     assert response.status_code == 200
+    assert response.json['tool_execution']['status'] == 'failed'
     with db.get_connection() as connection, connection.cursor() as cursor:
         cursor.execute('SELECT output_data FROM tool_calls WHERE session_id=%s ORDER BY id', (response.json['session_id'],))
         outputs = [row[0] for row in cursor.fetchall()]

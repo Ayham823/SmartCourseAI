@@ -1,10 +1,10 @@
 """One response contract for every successful routing path."""
 
 
-def format_response(session_id, answer, route, tool=None, sources=None, routing_reason=None):
+def format_response(session_id, answer, route, tool=None, sources=None, routing_reason=None, tool_execution=None):
     if route not in {"RAG", "TOOL", "DIRECT_LLM"}:
         raise ValueError("Unsupported response route.")
-    return {
+    response = {
         "session_id": str(session_id),
         "answer": answer,
         "route": route,
@@ -12,3 +12,6 @@ def format_response(session_id, answer, route, tool=None, sources=None, routing_
         "sources": list(sources or []) if route == "RAG" else [],
         "routing_reason": routing_reason,
     }
+    if route == "TOOL" and tool_execution is not None:
+        response["tool_execution"] = tool_execution
+    return response

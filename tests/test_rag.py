@@ -143,3 +143,39 @@ def test_empty_search_index_returns_422():
         with pytest.raises(AppError) as error:
             retriever.retrieve_chunks("Course question")
     assert error.value.status == 422
+
+
+@pytest.mark.parametrize('question', [
+    'How does SDK authentication work?',
+    'Why use embeddings?',
+    'كيف تعمل مصادقة SDK؟',
+    'لماذا نستخدم التضمين؟',
+    'איך עובדת הזדהות ב-SDK?',
+])
+def test_independent_question_does_not_inherit_previous_grade_topic(question):
+    history = [{'role': 'user', 'content': 'Calculate final grade: exam 82 weight 70%, project 95 weight 30%.'}]
+    assert service._retrieval_query(question, history) == question
+
+
+@pytest.mark.parametrize('question', ['Explain that', 'اشرح ذلك أكثر', 'הסבר את זה', 'Tell me more'])
+def test_referential_followup_reuses_recent_rag_topic(question):
+    history = [
+        {'role': 'user', 'content': 'Explain embeddings'},
+        {'role': 'assistant', 'content': 'A vector representation.', 'metadata': {'route': 'RAG'}},
+    ]
+    assert service._retrieval_query(question, history) == f'Explain embeddings\nFollow-up: {question}'
+
+
+def test_followup_cannot_skip_recent_non_rag_exchange_to_find_old_rag_topic():
+    history = [
+        {'role': 'user', 'content': 'Explain embeddings'},
+        {'role': 'assistant', 'content': 'Vectors.', 'metadata': {'route': 'RAG'}},
+        {'role': 'user', 'content': 'Calculate final grade.'},
+        {'role': 'assistant', 'content': 'Provide weights.', 'metadata': {'route': 'TOOL'}},
+    ]
+    assert service._retrieval_query('Explain that', history) == 'Explain that'
+
+
+def test_retrieval_ignores_unbounded_old_history_and_malformed_rows():
+    history = [{'role': 'user', 'content': 'Old SDK topic'}] + [None] * 20
+    assert service._retrieval_query('Explain that', history) == 'Explain that'

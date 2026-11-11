@@ -12,6 +12,7 @@ from server.llm import chain
 from server.rag import service as rag_service
 from server.services.response_formatter import format_response
 from server.tools.executor import execute_tool
+from server.tools.presentation import render_tool_answer
 from server.tools.schemas import TOOLS
 
 
@@ -69,6 +70,18 @@ def _process_tool(question, session_id, history, tool_name):
     selection = chain.build_tool_selection_chain(llm, allowed)
     scratchpad = []
     total_calls = 0
+    attempts = []
+    latest_outputs = []
+
+    def finish():
+        status = "not_executed"
+        if latest_outputs:
+            status = "executed" if all(item["status"] == "success" for item in latest_outputs) else "failed"
+        return {
+            "answer": render_tool_answer(tool_name, latest_outputs, question),
+            "execution": {"status": status, "calls": attempts},
+        }
+
     for _ in range(MAX_TOOL_ROUNDS):
         response = chain.invoke_checked(selection, {
             "question": question, "tool_name": tool_name,
@@ -78,16 +91,14 @@ def _process_tool(question, session_id, history, tool_name):
         if not calls:
             if getattr(response, "invalid_tool_calls", None):
                 raise AppError("The AI service returned invalid tool arguments. Please try again.", code="invalid_tool_call", status=502)
-            # A clarification answer is valid when the user's tool input is incomplete.
-            from langchain_core.output_parsers import StrOutputParser
-            answer = StrOutputParser().invoke(response).strip()
-            if not answer:
-                raise AppError("The AI service returned an empty answer.", code="llm_empty_answer", status=502)
-            return answer
+            # No call means no trusted facts. Discard even plausible model arithmetic
+            # and dates; return fixed guidance or the last actual validation result.
+            return finish()
         if total_calls + len(calls) > MAX_TOOL_CALLS:
             raise AppError("The AI service requested too many tool calls. Please simplify the question.", code="tool_call_limit", status=502)
         scratchpad.append(response)
         all_successful = True
+        latest_outputs = []
         for call in calls:
             total_calls += 1
             name = call.get("name", "")
@@ -109,22 +120,27 @@ def _process_tool(question, session_id, history, tool_name):
                 all_successful = False
                 output = {"status": "error", "error": "The tool could not complete the request.", "code": "tool_execution_error"}
             _log_call(session_id, name, arguments, output)
+            attempts.append({"name": name, **output})
+            latest_outputs.append(output)
             scratchpad.append(ToolMessage(content=json.dumps(output, ensure_ascii=False, allow_nan=False), tool_call_id=call_id, name=name))
         if all_successful:
             break
-    # No tools are bound for this final LCEL completion: the model cannot loop.
-    return chain.generate_tool_answer(llm, question, tool_name, history, scratchpad)
+    # Numeric and verified-record facts are rendered by Python. A second model
+    # completion cannot replace them, and no extra provider call is needed.
+    return finish()
 
 
 def process_message(message, session_id, history=None):
     decision = AgentRouter().route(message, history)
     route, tool = decision["route"], decision["tool"]
     sources = []
+    execution = None
     if route == "RAG":
         result = rag_service.answer_question(message, history=history)
         answer, sources = result["answer"], result.get("sources", [])
     elif route == "TOOL":
-        answer = _process_tool(message, session_id, history, tool)
+        result = _process_tool(message, session_id, history, tool)
+        answer, execution = result["answer"], result["execution"]
     else:
         answer = chain.generate_direct_answer(message, history=history)
-    return format_response(session_id, answer, route, tool, sources, decision["routing_reason"])
+    return format_response(session_id, answer, route, tool, sources, decision["routing_reason"], execution)
